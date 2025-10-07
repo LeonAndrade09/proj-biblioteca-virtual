@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Biblioteca Virtual</title>
+</head>
+<body>
+    <header><h1>Biblioteca Virtual</h1></header>
+
+    <h2>Adicionar Livro</h2>
+    <form id="formLivro">
+        <input type="text" id="titulo" placeholder="Título" required>
+        <input type="text" id="autor" placeholder="Autor" required>
+        <input type="number" id="ano" placeholder="Ano">
+        <input type="text" id="categoria" placeholder="Categoria">
+        <input type="number" id="quantidade" placeholder="Quantidade" value="1">
+        <button type="submit">Adicionar</button>
+    </form>
+
+    <h2>Lista de Livros</h2>
+    <ul id="listaLivros"></ul>
+
+    <script src="script.js"></script>
+</body>
+</html>
