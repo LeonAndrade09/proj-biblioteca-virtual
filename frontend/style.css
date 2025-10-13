@@ -1,11 +1,14 @@
-body {
-    padding: 0;
-    margin: 0;
-    background-color: black;
-    color: white;
-}
-
 header {
     display: block;
-    background-color: #56bc9a;
+    background-color: #56bca6;
+    padding: 10px;
+}
+
+h1 {
+    color: aliceblue;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+}
+
+h2 {
+    color: #56bca6;
 }
