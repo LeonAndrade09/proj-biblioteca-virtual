@@ -99,7 +99,7 @@ function editarLivro(livro) {
         const data = await res.json();
         alert(data.mensagem || data.erro);
         formLivro.reset();
-        formLivro.onsubmit = adicionarLivro; // Restaura o comportamento padrão do formulário
+        formLivro.onsubmit = adicionarLivro; 
         carregarLivros();
     };
 }

@@ -3,8 +3,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# Importa o db e o modelo Livro do arquivo models.py
-from models import db, Livro
+# Importa o db e os modelos do arquivo models.py
+from models import db, Livro, Usuario
 
 # Carrega variáveis do .env
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -31,10 +31,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicializa o banco de dados com o app
 db.init_app(app)
 
-# Rota inicial para testar a conexão
+# Registra blueprint de autenticação (arquivo auth_routes.py)
+from auth_routes import auth_bp
+app.register_blueprint(auth_bp)
+
+# Rotas da aplicação (lista, add, update, delete, serve frontend)
 @app.route('/')
 def home():
-    return jsonify({"mensagem": "Conexão com o banco bem-sucedida!"})
+    return jsonify({"mensagem": "API da Biblioteca Virtual funcionando!"})
 
 # Lista todos os livros
 @app.route('/livros', methods=['GET'])
