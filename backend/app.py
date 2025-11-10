@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+from datetime import timedelta
 
 # Importa o db e os modelos do arquivo models.py
 from models import db, Livro, Usuario
@@ -28,6 +30,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Configurações JWT
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'troque-isto-em-producao')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+jwt = JWTManager(app)
+
 # Inicializa o banco de dados com o app
 db.init_app(app)
 
@@ -48,6 +55,7 @@ def listar_livros():
 
 # Adiciona um novo livro
 @app.route('/add_livro', methods=['POST'])
+@jwt_required()
 def add_livro():
     data = request.get_json()
     if not data or not data.get('titulo') or not data.get('autor'):
@@ -66,6 +74,7 @@ def add_livro():
 
 # Atualiza os dados de um livro pelo ID
 @app.route('/update_livro/<int:id>', methods=['PUT'])
+@jwt_required()
 def update_livro(id):
     data = request.get_json()
     livro = Livro.query.get(id)
@@ -88,6 +97,7 @@ def update_livro(id):
 
 # Remove um livro pelo ID
 @app.route('/delete_livro/<int:id>', methods=['DELETE'])
+@jwt_required()
 def delete_livro(id):
     livro = Livro.query.get(id)
     if not livro:
