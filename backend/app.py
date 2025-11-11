@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 import os
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+import logging
+import urllib.parse
 from datetime import timedelta
 
 # Importa o db e os modelos do arquivo models.py
@@ -11,29 +13,64 @@ from models import db, Livro, Usuario
 # Carrega variáveis do .env
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
-# Inicializa o app Flask e habilita CORS
-app = Flask(__name__)
-CORS(app)
+# Logging básico
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Configuração do banco de dados PostgreSQL
+# Inicializa o app Flask
+app = Flask(__name__)
+
+# Configurações de CORS: permita listar origens via .env (separadas por vírgula)
+front_origins = os.getenv('FRONTEND_ORIGINS')
+if front_origins:
+    origins = [o.strip() for o in front_origins.split(',') if o.strip()]
+else:
+    # origens de desenvolvimento padrão
+    origins = [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000"
+    ]
+
+CORS(app, resources={r"/*": {"origins": origins}}, supports_credentials=True)
+
+# Configuração do banco de dados PostgreSQL (com escape da senha)
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 DB_NAME = os.getenv('DB_NAME')
 
-if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-    raise ValueError("Alguma variável do .env está faltando!")
+if all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
+    db_password_escaped = urllib.parse.quote_plus(DB_PASSWORD)
+    app.config['SQLALCHEMY_DATABASE_URI'] = (
+        f"postgresql://{DB_USER}:{db_password_escaped}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
+else:
+    # Fallback seguro para desenvolvimento local.
+    logger.warning("Variáveis do .env incompletas. Usando sqlite local (dev).")
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dev.db'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configurações JWT
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'troque-isto-em-producao')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=int(os.getenv('JWT_EXPIRES_HOURS', '1')))
 jwt = JWTManager(app)
+
+# Mensagens de erro JWT mais claras
+@jwt.unauthorized_loader
+def missing_token_callback(reason):
+    return jsonify({"erro": "Token ausente", "detalhe": reason}), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(reason):
+    return jsonify({"erro": "Token inválido", "detalhe": reason}), 422
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    return jsonify({"erro": "Token expirado"}), 401
 
 # Inicializa o banco de dados com o app
 db.init_app(app)
@@ -57,8 +94,8 @@ def listar_livros():
 @app.route('/add_livro', methods=['POST'])
 @jwt_required()
 def add_livro():
-    data = request.get_json()
-    if not data or not data.get('titulo') or not data.get('autor'):
+    data = request.get_json() or {}
+    if not data.get('titulo') or not data.get('autor'):
         return jsonify({"erro": "Campos 'titulo' e 'autor' são obrigatórios"}), 400
 
     novo_livro = Livro(
@@ -76,11 +113,18 @@ def add_livro():
 @app.route('/update_livro/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_livro(id):
-    data = request.get_json()
+    data = request.get_json() or {}
     livro = Livro.query.get(id)
     if not livro:
         return jsonify({"erro": "Livro não encontrado"}), 404
 
+    # get_jwt_identity retorna string (emitido como str(usuario.id)); converter quando precisar de int
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        user_id = None
+
+    # Validação mínima dos campos antes de aplicar
     if 'titulo' in data:
         livro.titulo = data['titulo']
     if 'autor' in data:
@@ -117,4 +161,5 @@ def frontend_static(filename):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    debug_flag = os.getenv('FLASK_DEBUG', 'False').lower() in ('1', 'true', 'yes')
+    app.run(debug=debug_flag)

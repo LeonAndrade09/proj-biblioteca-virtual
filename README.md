@@ -1,95 +1,180 @@
 # Biblioteca Virtual
 
-Este é um sistema simples de Biblioteca Virtual desenvolvido com Flask (backend Python), PostgreSQL (banco de dados) e HTML/CSS/JavaScript (frontend). Ele permite cadastrar, listar, editar e remover livros de forma fácil e intuitiva.
+Sistema simples de gestão de livros com backend em Flask (Python), banco PostgreSQL e frontend em HTML/CSS/JS. Inclui autenticação por JWT, CRUD de livros e interface web mínima.
 
-## Funcionalidades
+## Funcionalidades principais
 
-- **Adicionar livros** com título, autor, ano, categoria e quantidade.
-- **Listar todos os livros** cadastrados.
-- **Editar informações** de um livro existente.
-- **Remover livros** do acervo.
-- Interface web simples e responsiva.
+- Cadastro / login de usuários (JWT).
+- Adicionar, listar, editar e remover livros.
+- Frontend com formulários de login / registro e lista de livros.
+- Proteção de rotas que alteram dados com JWT.
+- Suporte a CORS configurável via `.env`.
 
-## Estrutura do Projeto
+## Estrutura do projeto
 
 ```
 proj-biblioteca-virtual/
 │
 ├── backend/
-│   └── app.py           # Código do backend Flask + API REST
-│   └── .env             # Variáveis de ambiente do banco de dados
+│   ├── app.py           # API Flask, registro de blueprints e rotas
+│   ├── models.py        # db, modelos Livro e Usuario
+│   ├── auth_routes.py   # blueprint /auth (register / login)
+│   └── .env             # variáveis de ambiente (não commitar)
 │
 ├── frontend/
-│   └── index.html       # Página principal da biblioteca
-│   └── style.css        # Estilos da interface
-│   └── scripts.js       # Lógica do frontend (consome a API)
+│   ├── index.html
+│   ├── login.html
+│   ├── register.html
+│   ├── style.css
+│   └── script.js
 │
-└── README.md            # Este arquivo
+├── requirements.txt
+└── README.md
 ```
 
 ## Pré-requisitos
 
 - Python 3.8+
-- PostgreSQL
+- PostgreSQL (opcional: fallback SQLite para desenvolvimento)
+- venv (recomendado)
 
-## Configuração do Banco de Dados
+## Variáveis de ambiente (.env)
 
-1. Crie um banco de dados PostgreSQL e um usuário.
-2. No diretório `backend`, crie um arquivo `.env` com o seguinte conteúdo:
+No diretório `backend/` crie um `.env` com pelo menos:
 
-   ```
-   DB_USER=seu_usuario
-   DB_PASSWORD=sua_senha
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=nome_do_banco
-   ```
+```
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nome_do_banco
 
-3. Instale as dependências do backend:
+# JWT
+JWT_SECRET_KEY=uma_chave_secreta_forte
+JWT_EXPIRES_HOURS=1
 
-   ```sh
-   pip install flask flask_sqlalchemy flask-cors python-dotenv psycopg2
-   ```
+# CORS (opcional: origens separadas por vírgula)
+FRONTEND_ORIGINS=http://127.0.0.1:5500,http://localhost:8000
 
-4. Crie as tabelas do banco (no Python REPL ou script):
-
-   ```python
-   from app import db
-   db.create_all()
-   ```
-
-## Executando o Backend
-
-No diretório `backend`, execute:
-
-```sh
-python backend/app.py
+# Debug (opcional)
+FLASK_DEBUG=True
 ```
 
-O backend estará disponível em [http://127.0.0.1:5000](http://127.0.0.1:5000).
+Não versionar o arquivo `.env`.
 
-## Executando o Frontend
+## Instalação
 
-No diretório `frontend`, você pode abrir o `index.html` diretamente **(se o backend estiver servindo arquivos estáticos)** ou rodar um servidor local:
+1. Ative seu virtualenv:
+   - PowerShell:
+     ```powershell
+     .\venv\Scripts\Activate.ps1
+     ```
+2. Instale dependências:
+   ```powershell
+   pip install -r requirements.txt
+   ```
 
-```sh
-python -m http.server 8000
+(ou instalar manualmente: Flask, Flask-CORS, Flask-JWT-Extended, Flask-SQLAlchemy, python-dotenv, psycopg2-binary, etc.)
+
+## Criar tabelas do banco (uma vez)
+
+Opção A — REPL (recomendado):
+```powershell
+cd backend
+python
+>>> from app import app, db
+>>> with app.app_context():
+...     db.create_all()
+... 
+>>> exit()
 ```
 
-Acesse [http://localhost:8000/index.html](http://localhost:8000/index.html).
+Opção B — rodar o app (se `__main__` chama db.create_all()):
+```powershell
+cd backend
+python app.py
+```
 
-## Uso
+Opção C — one‑liner:
+```powershell
+python -c "from backend.app import app, db; exec('with app.app_context():\\n    db.create_all()')"
+```
 
-- Preencha o formulário para adicionar um livro.
-- Veja a lista de livros cadastrados.
-- Use os botões **Editar** e **Remover** para gerenciar os livros.
+## Executando a aplicação
 
-## Observações
+- Backend:
+  ```powershell
+  cd backend
+  python app.py
+  ```
+  API disponível em: `http://127.0.0.1:5000`
 
-- O backend já está configurado para aceitar requisições CORS.
-- O frontend consome a API REST do backend.
-- O projeto pode ser facilmente adaptado para outros bancos de dados suportados pelo SQLAlchemy.
+- Frontend:
+  - Abrir via servidor simples:
+    ```powershell
+    cd frontend
+    python -m http.server 8000
+    ```
+    Acesse `http://localhost:8000/index.html`
+  - Ou acessar via rota estática do Flask: `http://127.0.0.1:5000/frontend/index.html` (se disponível)
+
+## Endpoints importantes
+
+- GET /              — status da API
+- POST /auth/register — registra usuário (JSON: { nome, email, senha })
+- POST /auth/login    — login (JSON: { email, senha }) → retorna `access_token`
+- GET /livros         — lista livros
+- POST /add_livro     — cria livro (protegido, enviar Authorization: Bearer <token>)
+- PUT /update_livro/<id> — atualiza (protegido)
+- DELETE /delete_livro/<id> — remove (protegido)
+
+Exemplo de header com token:
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+## Testes rápidos (curl / PowerShell)
+
+- Registrar:
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"nome":"Ana","email":"a@ex.com","senha":"1234"}' \
+  http://127.0.0.1:5000/auth/register
+```
+
+- Login:
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"a@ex.com","senha":"1234"}' \
+  http://127.0.0.1:5000/auth/login
+```
+
+- Usar token para criar livro:
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" \
+  -d '{"titulo":"Novo","autor":"Autor"}' http://127.0.0.1:5000/add_livro
+```
+
+## CORS e desenvolvimento
+
+- Se servir frontend em outra origem (ex.: Live Server :5500 ou python -m http.server :8000), o Flask precisa permitir essa origem — configure `FRONTEND_ORIGINS` no `.env` ou mantenha `CORS(app)` em desenvolvimento.
+- Em produção restrinja as origens permitidas.
+
+## Boas práticas e observações
+
+- Tokens JWT são emitidos com `identity` como string (evita erros "Subject must be a string"); ao ler `get_jwt_identity()` converta para int se necessário.
+- A coluna `senha_hash` foi dimensionada para 255 para suportar hashes modernos.
+- Para alterações de esquema em produção, use Flask-Migrate / Alembic em vez de editar a tabela manualmente.
+- Mantenha `JWT_SECRET_KEY` seguro e use HTTPS em produção.
+- Remova `debug=True` em produção.
+
+## Debugging comum
+
+- Erro CORS no navegador: ajustar `FRONTEND_ORIGINS` ou ativar CORS no backend.
+- 401/422 em rotas protegidas: verifique token no header `Authorization` e reefetue login para obter token válido.
+- ModuleNotFoundError: execute comandos a partir do diretório `backend` ou ajuste imports (`from backend.app import ...`) conforme o cwd.
 
 ## Licença
 
-Este projeto é livre para fins acadêmicos e de aprendizado.
+Projeto para fins acadêmicos e de aprendizado.

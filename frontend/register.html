@@ -1,23 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro - Biblioteca Virtual</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <link rel="stylesheet" href="style.css">
+    <title>Registrar - Biblioteca Virtual</title>
 </head>
 <body>
-    <div class="container">
-        <h2>Criar conta</h2>
-        <form id="registerForm">
-            <input type="text" id="nome" placeholder="Nome Completo" required>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="senha" placeholder="Senha" required>
-            <button type="submit">Cadastrar</button>
-        </form>
-        <p>Já tem conta? <a href="login.html">Entrar</a></p>
-    </div>
+    <header><h1>Biblioteca Virtual</h1></header>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="login.html">Login</a>
+      <a href="register.html">Registrar</a>
+    </nav>
 
-    <script src="scripts.js"></script>
+    <h2>Registrar Usuário</h2>
+    <form id="registerForm">
+        <input id="nome" name="nome" type="text" placeholder="Nome" required />
+        <input id="email" name="email" type="email" placeholder="Email" required />
+        <input id="senha" name="senha" type="password" placeholder="Senha" required />
+        <button type="submit">Registrar</button>
+    </form>
+
+    <script src="script.js"></script>
 </body>
 </html>
