@@ -12,3 +12,13 @@ h1 {
 h2 {
     color: #56bca6;
 }
+
+nav a{
+    padding: 10px;
+    color: white;
+    text-decoration: none;
+}
+
+nav a:hover {
+    background: #89e3d0;
+}
