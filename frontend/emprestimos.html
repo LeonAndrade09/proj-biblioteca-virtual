@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Empréstimos - Biblioteca Virtual</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+    <header>
+        <h1>Biblioteca Virtual</h1>
+        <nav>
+          <a href="index.html">Home</a>
+          <a href="login.html">Login</a>
+          <a href="register.html">Registrar</a>
+          <a href="emprestimos.html">Empréstimos</a>
+        </nav>
+    </header>
+
+    <h2>Realizar Empréstimo</h2>
+    <form id="emprestimoForm">
+        <select id="usuarioSelect" required>
+          <option value="">Carregando usuários...</option>
+        </select>
+        <select id="livroSelect" required>
+          <option value="">Carregando livros...</option>
+        </select>
+        <input id="data_prevista" type="date" required/>
+        <button id="btnEmprestar" type="submit">Realizar empréstimo</button>
+    </form>
+
+    <h2>Empréstimos Ativos</h2>
+    <ul id="listaEmprestimos">
+      <li>Carregando...</li>
+    </ul>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -16,10 +16,10 @@ Sistema simples de gestão de livros com backend em Flask (Python), banco Postgr
 proj-biblioteca-virtual/
 │
 ├── backend/
-│   ├── app.py           # API Flask, registro de blueprints e rotas
-│   ├── models.py        # db, modelos Livro e Usuario
-│   ├── auth_routes.py   # blueprint /auth (register / login)
-│   └── .env             # variáveis de ambiente (não commitar)
+│   ├── app.py           
+│   ├── models.py        
+│   ├── auth_routes.py   
+│   └── .env             
 │
 ├── frontend/
 │   ├── index.html

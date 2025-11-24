@@ -260,3 +260,260 @@ if (formLivro) {
 
 // Carrega a lista de livros ao iniciar a página (READ)
 carregarLivros();
+
+// elementos da página de empréstimos (só existem em emprestimos.html)
+const emprestimoForm = document.getElementById('emprestimoForm');
+const usuarioSelect = document.getElementById('usuarioSelect');
+const livroSelect = document.getElementById('livroSelect');
+const dataPrevistaInput = document.getElementById('data_prevista');
+const listaEmprestimos = document.getElementById('listaEmprestimos');
+
+// bloqueia datas anteriores
+if (dataPrevistaInput) {
+    const hoje = new Date().toISOString().split("T")[0];
+    dataPrevistaInput.min = hoje;
+}
+
+// formata data (yyyy-mm-dd ou datetime) para exibicao amigavel
+function formatDate(d) {
+    if (!d) return '—';
+    try {
+        const dt = new Date(d);
+        if (isNaN(dt)) return d;
+        return dt.toLocaleString();
+    } catch {
+        return d;
+    }
+}
+
+// tenta carregar lista de usuários. tenta várias rotas possíveis.
+async function carregarUsuariosParaSelect() {
+    if (!usuarioSelect) return;
+    usuarioSelect.innerHTML = '<option value="">Carregando usuários...</option>';
+
+    const tryEndpoints = ['/usuarios', '/users', '/auth/usuarios', '/auth/users'];
+    let usuarios = null;
+
+    for (const ep of tryEndpoints) {
+        try {
+            const res = await fetch(`${API_URL}${ep}`, { headers: authHeaders() });
+            if (!res.ok) continue;
+            usuarios = await res.json();
+            break;
+        } catch (err) {
+            // tentar próximo
+        }
+    }
+
+    // fallback: tentar rota de perfil (usuário logado)
+    if (!usuarios) {
+        try {
+            const res = await fetch(`${API_URL}/auth/perfil`, { headers: authHeaders() });
+            if (res.ok) {
+                const u = await res.json();
+                usuarios = [u];
+            }
+        } catch (err) {}
+    }
+
+    // monta select
+    usuarioSelect.innerHTML = '';
+    if (!Array.isArray(usuarios) || usuarios.length === 0) {
+        usuarioSelect.innerHTML = '<option value="">Nenhum usuário disponível</option>';
+        return;
+    }
+
+    usuarioSelect.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Selecione um usuário' }));
+    usuarios.forEach(u => {
+        const opt = document.createElement('option');
+        // tenta campos comuns
+        opt.value = u.id ?? u.user_id ?? u.usuario_id ?? u.email ?? '';
+        opt.textContent = (u.nome || u.name || u.email || `#${opt.value}`);
+        usuarioSelect.appendChild(opt);
+    });
+}
+
+// carrega livros para o select (aproveita /livros)
+async function carregarLivrosParaSelect() {
+    if (!livroSelect) return;
+    livroSelect.innerHTML = '<option value="">Carregando livros...</option>';
+
+    try {
+        const res = await fetch(`${API_URL}/livros`);
+        if (!res.ok) {
+            livroSelect.innerHTML = '<option value="">Erro ao carregar livros</option>';
+            return;
+        }
+        const livros = await res.json();
+        if (!Array.isArray(livros) || livros.length === 0) {
+            livroSelect.innerHTML = '<option value="">Nenhum livro cadastrado</option>';
+            return;
+        }
+
+        livroSelect.innerHTML = '<option value="">Selecione um livro</option>';
+        livros.forEach(l => {
+            // inclui todos, mas indica se quantidade é zero
+            const opt = document.createElement('option');
+            opt.value = l.id;
+            opt.textContent = `${l.titulo} — ${l.autor} (Qtd: ${l.quantidade ?? 0})`;
+            if ((l.quantidade ?? 0) <= 0) opt.disabled = true;
+            livroSelect.appendChild(opt);
+        });
+    } catch (err) {
+        console.error(err);
+        livroSelect.innerHTML = '<option value="">Erro de rede</option>';
+    }
+}
+
+// cria empréstimo (POST /emprestimos)
+async function criarEmprestimo(payload) {
+    try {
+        const res = await fetch(`${API_URL}/emprestimos`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
+        });
+
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+        if (res.ok) {
+            showToast(data.mensagem || 'Empréstimo registrado', 'success');
+            await carregarEmprestimos();
+            await carregarLivros();      
+            await carregarLivrosParaSelect(); 
+            return true;
+        } else {
+            showToast(data.erro || data.message || 'Erro ao registrar empréstimo', 'error', 5000);
+            return false;
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Erro de rede ao registrar empréstimo', 'error');
+        return false;
+    }
+}
+
+// devolve empréstimo (PUT /emprestimos/:id/devolver) com fallback
+async function devolverEmprestimo(id) {
+    if (!confirm('Confirmar devolução deste empréstimo?')) return;
+    try {
+        let res = await fetch(`${API_URL}/emprestimos/${id}/devolver`, {
+            method: 'PUT',
+            headers: authHeaders()
+        });
+
+        if (!res.ok && res.status === 405) {
+            // fallback: endpoint alternativo
+            res = await fetch(`${API_URL}/devolver/${id}`, { method: 'POST', headers: authHeaders() });
+        }
+
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+        if (res.ok) {
+            showToast(data.mensagem || 'Devolução registrada', 'success');
+            await carregarEmprestimos();
+            await carregarLivros();
+            await carregarLivrosParaSelect();
+        } else {
+            showToast(data.erro || data.message || 'Erro ao devolver', 'error', 5000);
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Erro de rede ao devolver empréstimo', 'error');
+    }
+}
+
+// carrega empréstimos e exibe em lista
+async function carregarEmprestimos() {
+    if (!listaEmprestimos) return;
+    listaEmprestimos.innerHTML = '<li class="small">Carregando...</li>';
+
+    try {
+        const res = await fetch(`${API_URL}/emprestimos`, {
+            method: 'GET',
+            headers: authHeaders()
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error('Erro ao carregar empréstimos:', res.status, text);
+            listaEmprestimos.innerHTML = '<li class="small">Erro ao carregar empréstimos</li>';
+            return;
+        }
+
+        const emprestimos = await res.json();
+        listaEmprestimos.innerHTML = '';
+
+        if (!Array.isArray(emprestimos) || emprestimos.length === 0) {
+            listaEmprestimos.innerHTML = '<li class="small">Nenhum empréstimo ativo.</li>';
+            return;
+        }
+
+        emprestimos.forEach(emp => {
+            const li = document.createElement('li');
+            // tentar compor texto com dados variados que o backend pode retornar
+            const usuarioNome = emp.usuario?.nome || emp.user?.nome || emp.usuario_nome || emp.nome_usuario || emp.nome || (`#${emp.user_id || emp.usuario_id || emp.usuarioId || ''}`);
+            const livroTitulo = emp.livro?.titulo || emp.book?.titulo || emp.titulo_livro || emp.livro_titulo || emp.titulo || (`#${emp.livro_id || emp.book_id || ''}`);
+            const emprestadoEm = formatDate(emp.data_emprestimo || emp.emprestado_em || emp.created_at);
+            const devolucao = formatDate(emp.data_devolucao);
+
+            li.innerHTML = `<strong>${livroTitulo}</strong> — ${usuarioNome} <br>
+                            Emprestado: ${emprestadoEm} • Devolução: ${devolucao} <br>`;
+
+            // botão devolver (se ativo)
+            const btn = document.createElement('button');
+            btn.textContent = 'Devolver';
+            btn.onclick = () => devolverEmprestimo(emp.id ?? emp.emprestimo_id ?? emp.loan_id);
+
+            li.appendChild(btn);
+            listaEmprestimos.appendChild(li);
+        });
+
+    } catch (err) {
+        console.error(err);
+        listaEmprestimos.innerHTML = '<li class="small">Erro de rede ao carregar empréstimos</li>';
+    }
+}
+
+// tratar submissão do formulário de empréstimo
+if (emprestimoForm) {
+    emprestimoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // obtém IDs e valida
+        const usuarioVal = usuarioSelect?.value;
+        const livroVal = livroSelect?.value;
+        const dataPrevista = dataPrevistaInput?.value || null;
+
+        if (!usuarioVal) {
+            showToast('Selecione um usuário', 'error');
+            return;
+        }
+        if (!livroVal) {
+            showToast('Selecione um livro', 'error');
+            return;
+        }
+
+        const payload = {
+            usuario_id: isNaN(Number(usuarioVal)) ? usuarioVal : Number(usuarioVal),
+            livro_id: isNaN(Number(livroVal)) ? livroVal : Number(livroVal),
+            data_prevista: dataPrevista
+        };
+
+        await criarEmprestimo(payload);
+
+        // reset do form
+        emprestimoForm.reset();
+    });
+
+    // carrega dados iniciais quando a página apresentar o form
+    (async () => {
+        await carregarUsuariosParaSelect();
+        await carregarLivrosParaSelect();
+        await carregarEmprestimos();
+    })();
+}
