@@ -46,12 +46,14 @@ class Usuario(db.Model):
 
 class Emprestimo(db.Model):
     __tablename__ = 'emprestimos'
+
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     livro_id = db.Column(db.Integer, db.ForeignKey('livros.id'), nullable=False)
     data_emprestimo = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    data_prevista = db.Column(db.Date, nullable=True)
     data_devolucao = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), nullable=False, default='emprestado')  # 'emprestado' ou 'devolvido'
+    status = db.Column(db.String(20), nullable=False, default='emprestado')
 
     def to_dict(self):
         return {
@@ -59,6 +61,7 @@ class Emprestimo(db.Model):
             "usuario_id": self.usuario_id,
             "livro_id": self.livro_id,
             "data_emprestimo": self.data_emprestimo.isoformat() if self.data_emprestimo else None,
+            "data_prevista": self.data_prevista.isoformat() if self.data_prevista else None,
             "data_devolucao": self.data_devolucao.isoformat() if self.data_devolucao else None,
             "status": self.status
         }

@@ -90,6 +90,8 @@ if (registerForm) {
 
 // Busca e exibe a lista de livros cadastrados na API
 async function carregarLivros() {
+    if (!listaLivros) return;
+
     try {
         const res = await fetch(`${API_URL}/livros`);
         if (!res.ok) {
@@ -98,16 +100,16 @@ async function carregarLivros() {
             showToast('Erro ao carregar livros', 'error', 3000);
             return;
         }
+
         const livros = await res.json();
 
         listaLivros.innerHTML = '';
         if (!Array.isArray(livros) || livros.length === 0) {
-            listaLivros.innerHTML = '<li>Nenhum livro cadastrado.</li>';
+            listaLivros.innerHTML = '<li class="sem-livros">Nenhum livro cadastrado.</li>';
             return;
         }
 
         livros.forEach(livro => {
-            // Cria um item de lista para cada livro
             const li = document.createElement('li');
             li.textContent = `${livro.titulo} - ${livro.autor} (${livro.ano || ''}) [${livro.categoria || ''}] - Qtd: ${livro.quantidade}`;
 
@@ -268,22 +270,77 @@ const livroSelect = document.getElementById('livroSelect');
 const dataPrevistaInput = document.getElementById('data_prevista');
 const listaEmprestimos = document.getElementById('listaEmprestimos');
 
-// bloqueia datas anteriores
+// bloqueia datas anteriores + bloqueia datas muito distantes (2 anos)
 if (dataPrevistaInput) {
-    const hoje = new Date().toISOString().split("T")[0];
-    dataPrevistaInput.min = hoje;
+    const hoje = new Date();
+    const minDate = hoje.toISOString().split("T")[0];
+
+    // cria nova data = hoje + 2 anos
+    const maxDateObj = new Date();
+    maxDateObj.setFullYear(maxDateObj.getFullYear() + 2);
+    const maxDate = maxDateObj.toISOString().split("T")[0];
+
+    dataPrevistaInput.min = minDate;
+    dataPrevistaInput.max = maxDate;
 }
 
-// formata data (yyyy-mm-dd ou datetime) para exibicao amigavel
+// validação adicional ao enviar
+if (emprestimoForm) {
+    emprestimoForm.addEventListener("submit", (e) => {
+        const selecionada = new Date(dataPrevistaInput.value);
+
+        const hoje = new Date();
+        const limite = new Date();
+        limite.setFullYear(limite.getFullYear() + 2);
+
+        if (selecionada < hoje) {
+            e.preventDefault();
+            alert("A data não pode ser anterior ao dia de hoje.");
+        }
+
+        if (selecionada > limite) {
+            e.preventDefault();
+            alert("A data prevista não pode ultrapassar 2 anos a partir de hoje.");
+        }
+    });
+}
+
+// formata data (aceita date-only "YYYY-MM-DD" ou ISO datetime) para exibicao amigavel
 function formatDate(d) {
     if (!d) return '—';
-    try {
-        const dt = new Date(d);
-        if (isNaN(dt)) return d;
-        return dt.toLocaleString();
-    } catch {
-        return d;
+
+    // Se já for um objeto Date, formata direto
+    if (d instanceof Date) {
+        if (isNaN(d)) return '—';
+        return d.toLocaleString();
     }
+
+    // Se for string, primeiro detecta date-only (YYYY-MM-DD)
+    if (typeof d === 'string') {
+        // remove espaços
+        const s = d.trim();
+
+        // Padrão date-only: 2026-01-01
+        const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(s);
+        if (dateOnlyMatch) {
+            const [y, m, day] = s.split('-').map(Number);
+            // cria Date no fuso local (evita interpretar como UTC)
+            const dt = new Date(y, m - 1, day);
+            return dt.toLocaleDateString();
+        }
+
+        // Caso seja ISO datetime (com ou sem timezone), tenta converter
+        try {
+            const dt = new Date(s);
+            if (isNaN(dt)) return s;
+            return dt.toLocaleString();
+        } catch {
+            return s;
+        }
+    }
+
+    // fallback: mostra como string
+    try { return String(d); } catch { return '—'; }
 }
 
 // tenta carregar lista de usuários. tenta várias rotas possíveis.
@@ -455,21 +512,45 @@ async function carregarEmprestimos() {
 
         emprestimos.forEach(emp => {
             const li = document.createElement('li');
-            // tentar compor texto com dados variados que o backend pode retornar
+
+            // nomes/títulos possíveis vindos do backend (vários formatos)
             const usuarioNome = emp.usuario?.nome || emp.user?.nome || emp.usuario_nome || emp.nome_usuario || emp.nome || (`#${emp.user_id || emp.usuario_id || emp.usuarioId || ''}`);
             const livroTitulo = emp.livro?.titulo || emp.book?.titulo || emp.titulo_livro || emp.livro_titulo || emp.titulo || (`#${emp.livro_id || emp.book_id || ''}`);
+
+            // datas: tentativa de ler campos previstos e efetivos em vários nomes possíveis
             const emprestadoEm = formatDate(emp.data_emprestimo || emp.emprestado_em || emp.created_at);
-            const devolucao = formatDate(emp.data_devolucao);
+            const previstaRaw = emp.data_prevista || emp.data_devolucao_prevista || emp.previsao || emp.expected_return || null;
+            const prevista = formatDate(previstaRaw);
+            const devolucaoRaw = emp.data_devolucao || emp.returned_at || emp.devolvido_em || null;
+            const devolucao = formatDate(devolucaoRaw);
+
+            // status possível
+            const status = (emp.status || emp.estado || (devolucaoRaw ? 'devolvido' : 'emprestado')).toString().toLowerCase();
+
+            // Composição do texto exibido:
+            // - mostra prevista separada de devolução efetiva
+            let detalheDatas = `Emprestado: ${emprestadoEm}`;
+            if (previstaRaw) detalheDatas += ` • Prevista: ${prevista}`;
+            detalheDatas += ` • Devolução: ${devolucao}`;
 
             li.innerHTML = `<strong>${livroTitulo}</strong> — ${usuarioNome} <br>
-                            Emprestado: ${emprestadoEm} • Devolução: ${devolucao} <br>`;
+                            ${detalheDatas} <br>
+                            <em>Status: ${status}</em><br>`;
 
             // botão devolver (se ativo)
-            const btn = document.createElement('button');
-            btn.textContent = 'Devolver';
-            btn.onclick = () => devolverEmprestimo(emp.id ?? emp.emprestimo_id ?? emp.loan_id);
+            if (status === 'devolvido' || devolucaoRaw) {
+                // exibe apenas informação de devolução (botão escondido)
+                const span = document.createElement('span');
+                span.className = 'small muted';
+                span.textContent = 'Empréstimo finalizado';
+                li.appendChild(span);
+            } else {
+                const btn = document.createElement('button');
+                btn.textContent = 'Devolver';
+                btn.onclick = () => devolverEmprestimo(emp.id ?? emp.emprestimo_id ?? emp.loan_id);
+                li.appendChild(btn);
+            }
 
-            li.appendChild(btn);
             listaEmprestimos.appendChild(li);
         });
 
@@ -498,16 +579,28 @@ if (emprestimoForm) {
             return;
         }
 
+        // validação extra: data prevista >= hoje (já imposta pelo input.min, mas reforçar)
+        if (dataPrevista) {
+            const hojeStr = new Date().toISOString().split("T")[0];
+            if (dataPrevista < hojeStr) {
+                showToast('A data prevista não pode ser anterior a hoje.', 'error');
+                return;
+            }
+        }
+
         const payload = {
             usuario_id: isNaN(Number(usuarioVal)) ? usuarioVal : Number(usuarioVal),
             livro_id: isNaN(Number(livroVal)) ? livroVal : Number(livroVal),
+            // usamos o campo data_prevista conforme combinado com o backend
             data_prevista: dataPrevista
         };
 
-        await criarEmprestimo(payload);
+        const ok = await criarEmprestimo(payload);
 
-        // reset do form
-        emprestimoForm.reset();
+        if (ok) {
+            // reset do form apenas se deu certo
+            emprestimoForm.reset();
+        }
     });
 
     // carrega dados iniciais quando a página apresentar o form

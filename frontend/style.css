@@ -1,24 +1,131 @@
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f5f7f7;
+    color: #333;
+}
+
 header {
-    display: block;
     background-color: #56bca6;
-    padding: 10px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 h1 {
-    color: aliceblue;
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    color: #ffffff;
+    margin: 0;
+    font-size: 1.8rem;
 }
 
-h2 {
-    color: #56bca6;
-}
-
-nav a{
-    padding: 10px;
+nav a {
+    padding: 10px 15px;
     color: white;
     text-decoration: none;
+    font-weight: bold;
+    transition: background 0.2s;
 }
 
 nav a:hover {
     background: #89e3d0;
+    border-radius: 4px;
+}
+
+h2 {
+    color: #56bca6;
+    margin-left: 20px;
+    margin-top: 25px;
+}
+
+form {
+    display: flex;
+    flex-wrap: wrap;     
+    gap: 10px;           
+    align-items: center;
+    margin: 20px;
+}
+
+form input {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+form button {
+    padding: 10px 20px;
+    background-color: #56bca6;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+    height: 42px;
+}
+
+form button:hover {
+    background-color: #3da18e;
+}
+
+form select {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    cursor: pointer;
+    min-width: 180px;   
+    height: 42px;       
+    transition: border-color 0.2s;
+}
+
+form select:focus {
+    outline: none;
+    border-color: #56bca6;
+}
+
+#listaLivros {
+    margin: 20px;
+    padding: 0;
+    list-style: none;
+}
+
+#listaLivros li {
+    background-color: white;
+    border: 1px solid #ddd;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+#listaLivros button {
+    margin-left: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: opacity 0.2s;
+}
+
+#listaLivros button:nth-child(2) {
+    background-color: #56bca6;
+    color: white;
+}
+
+#listaLivros button:nth-child(1) {
+    background-color: #d9534f;
+    color: white;
+}
+
+#listaLivros button:hover {
+    opacity: 0.85;
+}
+
+.sem-livros {
+    margin-left: 20px;
+    padding: 8px 0;
 }
